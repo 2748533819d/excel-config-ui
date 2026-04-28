@@ -1,0 +1,43 @@
+{
+  "name": "excel-config-ui",
+  "private": false,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/excel-config-ui.umd.cjs",
+  "module": "./dist/excel-config-ui.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/excel-config-ui.js",
+      "require": "./dist/excel-config-ui.umd.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "build:lib": "vue-tsc -b && vite build --mode lib",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.32",
+    "@univerjs/core": "0.21.1",
+    "@univerjs/preset-sheets-core": "0.21.1",
+    "@univerjs/design": "0.21.1",
+    "@univerjs/icons": "1.1.1",
+    "element-plus": "^2.9.10"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@types/node": "^24.12.2",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.10",
+    "vue-tsc": "^3.2.7",
+    "@vue/tsconfig": "^0.9.1"
+  },
+  "peerDependencies": {
+    "vue": "^3.5.0"
+  }
+}
