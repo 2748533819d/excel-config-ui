@@ -10,7 +10,8 @@
     ".": {
       "import": "./dist/excel-config-ui.js",
       "require": "./dist/excel-config-ui.umd.cjs"
-    }
+    },
+    "./style.css": "./dist/style.css"
   },
   "files": [
     "dist"
@@ -19,8 +20,23 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "build:lib": "vue-tsc -b && vite build --mode lib",
+    "prepublishOnly": "npm run build:lib",
     "preview": "vite preview"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/2748533819d/excel-config-ui.git"
+  },
+  "keywords": [
+    "excel",
+    "config",
+    "vue",
+    "univer",
+    "spreadsheet",
+    "导入导出"
+  ],
+  "author": "",
+  "license": "MIT",
   "dependencies": {
     "vue": "^3.5.32",
     "@univerjs/core": "0.21.1",
@@ -38,6 +54,7 @@
     "@vue/tsconfig": "^0.9.1"
   },
   "peerDependencies": {
-    "vue": "^3.5.0"
+    "vue": "^3.5.0",
+    "element-plus": "^2.9.0"
   }
 }

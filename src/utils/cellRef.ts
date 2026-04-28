@@ -1,3 +1,5 @@
+import type { CellRange } from '../types';
+
 /**
  * 行列号转 Excel 引用 (0, 0) => "A1"
  */

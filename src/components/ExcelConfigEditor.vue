@@ -129,20 +129,20 @@
         <template v-if="['DOWN', 'RIGHT', 'BLOCK'].includes(newField.extractMode)">
           <el-form-item label="行数">
             <el-input-number
-              v-model="newField.range.rows"
+              v-model.number="newField.range!.rows"
               :min="1"
               style="width: 100%"
             />
           </el-form-item>
           <el-form-item label="列数" v-if="newField.extractMode === 'BLOCK'">
             <el-input-number
-              v-model="newField.range.cols"
+              v-model.number="newField.range!.cols"
               :min="1"
               style="width: 100%"
             />
           </el-form-item>
           <el-form-item label="跳过空行">
-            <el-switch v-model="newField.range.skipEmpty" />
+            <el-switch v-model="newField.range!.skipEmpty" />
           </el-form-item>
         </template>
       </el-form>
@@ -165,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { UploadFilled } from '@element-plus/icons-vue';
 import {
   ElMessage,
@@ -190,7 +190,6 @@ import type {
   CellRange,
 } from '../types';
 
-import { getCellRef, rangeToRef } from '../utils/cellRef';
 import { toExcelConfig, downloadJson, copyToClipboard } from '../utils/configGenerator';
 import { useUniver } from '../composables/useUniver';
 
@@ -212,8 +211,10 @@ const jsonPreview = ref('');
 const localTemplateName = ref(props.templateName);
 
 // 新字段表单
-const newField = ref<Partial<FieldConfig>>({
+const newField = ref<FieldConfig>({
+  id: '',
   key: '',
+  position: {},
   extractMode: 'SINGLE',
   type: 'STRING',
   required: false,
@@ -225,7 +226,7 @@ const newField = ref<Partial<FieldConfig>>({
 });
 
 // Univer 初始化
-const { initUniver, disposeUniver, getSelection, loadExcelFile } = useUniver();
+const { initUniver, disposeUniver, loadExcelFile } = useUniver();
 
 // 当前选区
 const currentSelection = ref<CellRange | null>(null);
@@ -258,46 +259,12 @@ const handleFileChange = async (file: any) => {
   ElMessage.success(`已加载文件：${rawFile.name}`);
 };
 
-// 打开添加字段对话框
-const openAddField = () => {
-  const selection = getSelection();
-  if (!selection) {
-    ElMessage.warning('请先在表格中选择单元格');
-    return;
-  }
-
-  currentSelection.value = selection;
-  const cellRef = rangeToRef(selection);
-
-  newField.value = {
-    key: `field_${fields.value.length + 1}`,
-    position: {
-      cellRef: selection.startRow === selection.endRow &&
-               selection.startColumn === selection.endColumn
-        ? cellRef
-        : undefined,
-      areaRef: selection.startRow !== selection.endRow ||
-               selection.startColumn !== selection.endColumn
-        ? cellRef
-        : undefined,
-    },
-    extractMode: 'SINGLE',
-    type: 'STRING',
-    required: false,
-    range: {
-      rows: selection.endRow - selection.startRow + 1,
-      cols: selection.endColumn - selection.startColumn + 1,
-      skipEmpty: false,
-    },
-  };
-
-  showAddField.value = true;
-};
-
 // 重置表单
 const resetForm = () => {
   newField.value = {
+    id: '',
     key: '',
+    position: {},
     extractMode: 'SINGLE',
     type: 'STRING',
     required: false,
@@ -380,14 +347,14 @@ const handleCopy = async () => {
 defineExpose({
   getFields: () => fields.value,
   getConfig: () => toExcelConfig(fields.value, localTemplateName.value),
-  loadConfig: (config: ExcelConfig) => {
+  loadConfig: (_config: ExcelConfig) => {
     // TODO: 加载已有配置
     ElMessage.info('加载配置功能开发中...');
   },
 });
 </script>
 
-<style lang="scss" scoped>
+<style lang="css" scoped>
 .excel-config-editor {
   display: flex;
   flex-direction: column;

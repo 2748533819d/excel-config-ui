@@ -12,11 +12,13 @@ export default defineConfig({
       fileName: (format) => `excel-config-ui.${format === 'es' ? 'js' : 'umd.cjs'}`,
     },
     rollupOptions: {
-      external: ['vue'],
+      external: ['vue', 'element-plus'],
       output: {
         globals: {
           vue: 'Vue',
+          'element-plus': 'ElementPlus',
         },
+        assetFileNames: 'assets/[name][extname]',
       },
     },
     sourcemap: true,

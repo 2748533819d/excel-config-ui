@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ExcelConfigEditor } from './components/ExcelConfigEditor.vue';
+import ExcelConfigEditor from './components/ExcelConfigEditor.vue';
 import type { ExcelConfig } from './types';
 
 function handleGenerate(config: ExcelConfig, json: string) {
