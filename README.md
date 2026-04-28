@@ -140,6 +140,16 @@ editor.value.loadConfig(savedConfig);
 
 ## 与后端 Java 组件联合使用
 
+### 后端 Maven 坐标
+
+```xml
+<dependency>
+    <groupId>io.github.cynosure-tech</groupId>
+    <artifactId>excel-config-core</artifactId>
+    <version>1.0.1</version>
+</dependency>
+```
+
 ### 1. 前端生成配置
 
 ```vue
