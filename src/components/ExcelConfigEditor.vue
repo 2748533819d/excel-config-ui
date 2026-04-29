@@ -1,124 +1,185 @@
 <template>
   <div class="excel-config-editor">
-    <!-- 工具栏 -->
-    <div v-if="showToolbar" class="toolbar">
+    <!-- 顶部工具栏 -->
+    <div class="toolbar" v-if="showToolbar">
       <div class="toolbar-left">
+        <div class="logo">
+          <span class="logo-icon">📊</span>
+          <span class="logo-text">Excel Config</span>
+        </div>
+        <div class="toolbar-divider"></div>
         <el-input
           v-model="localTemplateName"
           placeholder="模板名称"
-          style="width: 200px"
+          class="template-input"
           @change="emitConfigChange"
         />
       </div>
       <div class="toolbar-right">
-        <el-button @click="handleGenerate">生成配置</el-button>
-        <el-button type="primary" @click="handleDownload">下载 JSON</el-button>
-        <el-button type="success" @click="handleCopy">复制 JSON</el-button>
+        <el-button @click="handleGenerate">
+          <el-icon><Document /></el-icon>
+          生成配置
+        </el-button>
+        <el-button type="primary" plain @click="handleDownload">
+          <el-icon><Download /></el-icon>
+          下载
+        </el-button>
+        <el-button type="primary" plain @click="handleCopy">
+          <el-icon><CopyDocument /></el-icon>
+          复制
+        </el-button>
+      </div>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+      <div class="status-left">
+        <span class="status-item" v-if="excelFile">
+          <el-icon><FolderChecked /></el-icon>
+          {{ excelFile.name }}
+        </span>
+        <span class="status-item" v-else>
+          请上传 Excel 文件
+        </span>
+      </div>
+      <div class="status-right">
+        <span class="status-item">
+          {{ fields.length }} 个字段配置
+        </span>
       </div>
     </div>
 
     <div class="main-content">
-      <!-- 表格预览区 -->
+      <!-- 表格区域 -->
       <div class="sheet-area">
-        <div class="upload-area" v-if="!excelFile">
-          <el-upload
-            drag
-            :auto-upload="false"
-            accept=".xlsx,.xls"
-            :on-change="handleFileChange"
-            :show-file-list="false"
-          >
-            <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
-            <div class="el-upload__text">
-              拖拽 Excel 文件到此处 或 <em>点击上传</em>
-            </div>
-            <template #tip>
-              <div class="el-upload__tip">
-                仅支持 .xlsx 文件
+        <!-- 上传区域 -->
+        <div class="upload-overlay" v-if="!excelFile">
+          <div class="upload-card">
+            <el-upload
+              drag
+              :auto-upload="false"
+              accept=".xlsx,.xls"
+              :on-change="handleFileChange"
+              :show-file-list="false"
+            >
+              <div class="upload-content">
+                <el-icon class="upload-icon"><UploadFilled /></el-icon>
+                <div class="upload-text">
+                  <div class="upload-title">拖拽 Excel 文件到此处</div>
+                  <div class="upload-subtitle">或点击上传</div>
+                </div>
+                <div class="upload-hint">支持 .xlsx, .xls 格式</div>
               </div>
-            </template>
-          </el-upload>
+            </el-upload>
+          </div>
         </div>
 
-        <!-- Excel 数据显示 -->
-        <div class="excel-preview" v-else>
-          <div class="excel-preview-header">
-            <span class="file-name">{{ excelFile.name }}</span>
-            <el-button size="small" @click="resetFile">重新上传</el-button>
+        <!-- Excel 表格预览 -->
+        <div class="spreadsheet" v-else>
+          <!-- 公式栏 -->
+          <div class="formula-bar">
+            <div class="formula-label">fx</div>
+            <div class="formula-input">{{ selectedCell || '' }}</div>
           </div>
-          <div class="table-container">
-            <table class="excel-table">
+
+          <!-- 表格容器 -->
+          <div class="table-wrapper">
+            <table class="spreadsheet-table">
               <thead>
                 <tr>
-                  <th class="row-header"></th>
-                  <th v-for="(header, index) in tableHeaders" :key="index" class="col-header">
-                    {{ header || `(空)` }}
+                  <th class="corner-cell"></th>
+                  <th v-for="(header, index) in tableHeaders" :key="index" class="col-header" :class="{ 'selected': selectedCol === index }">
+                    <span class="col-letter">{{ String.fromCharCode(65 + index) }}</span>
+                    <span class="col-content">{{ header || '(空)' }}</span>
+                  </th>
+                  <!-- 填充空白列 -->
+                  <th v-for="i in 5" :key="'empty-' + i" class="col-header empty">
+                    <span class="col-letter">{{ String.fromCharCode(65 + tableHeaders.length + i) }}</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, rowIndex) in tableData" :key="rowIndex">
-                  <td class="row-header">{{ rowIndex + 1 }}</td>
+                <tr v-for="(row, rowIndex) in tableData" :key="rowIndex" :class="{ 'selected-row': selectedRow === rowIndex }">
+                  <td class="row-header" :class="{ 'selected': selectedRow === rowIndex }">
+                    {{ rowIndex + 1 }}
+                  </td>
                   <td
                     v-for="(cell, colIndex) in row"
                     :key="colIndex"
                     class="cell"
-                    :class="{ 'header-cell': rowIndex === 0 }"
+                    :class="{
+                      'selected': selectedRow === rowIndex && selectedCol === colIndex,
+                      'header-row': rowIndex === 0
+                    }"
                     @click="handleCellClick(rowIndex, colIndex, cell)"
                   >
-                    {{ cell ?? '' }}
+                    <span class="cell-content">{{ cell ?? '' }}</span>
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+
+          <!-- 重新上传按钮 -->
+          <div class="upload-actions">
+            <el-button size="small" @click="resetFile">
+              <el-icon><Refresh /></el-icon>
+              重新上传
+            </el-button>
+          </div>
         </div>
       </div>
 
-      <!-- 配置面板 -->
+      <!-- 右侧配置面板 -->
       <div class="config-panel">
         <div class="config-header">
-          <h3>字段配置</h3>
+          <div class="header-title">
+            <el-icon><Setting /></el-icon>
+            <span>字段配置</span>
+          </div>
           <el-button type="primary" size="small" @click="showAddField = true">
-            + 添加字段
+            <el-icon><Plus /></el-icon>
+            添加字段
           </el-button>
         </div>
 
         <div class="config-list">
-          <div v-for="field in fields" :key="field.id" class="config-item">
-            <div class="config-item-header">
-              <span class="field-key">{{ field.key }}</span>
-              <span class="field-mode">{{ field.extractMode }}</span>
-              <el-button
-                link
-                type="danger"
-                size="small"
-                @click="deleteField(field.id)"
-              >
-                删除
-              </el-button>
-            </div>
-            <div class="config-item-body">
-              <div class="config-row">
-                <span class="label">位置:</span>
-                <span class="value">{{ field.position.cellRef || field.position.areaRef || '-' }}</span>
+          <el-empty v-if="fields.length === 0" :image-size="80" description="点击表格中的单元格添加字段" />
+
+          <div v-for="(field, index) in fields" :key="field.id" class="config-item">
+            <div class="config-item-main">
+              <div class="config-item-header">
+                <div class="field-info">
+                  <span class="field-index">{{ index + 1 }}</span>
+                  <span class="field-key">{{ field.key }}</span>
+                </div>
+                <div class="field-actions">
+                  <el-tag size="small" type="info">{{ field.extractMode }}</el-tag>
+                  <el-button link type="danger" size="small" @click="deleteField(field.id)">
+                    <el-icon><Close /></el-icon>
+                  </el-button>
+                </div>
               </div>
-              <div class="config-row">
-                <span class="label">类型:</span>
-                <span class="value">{{ field.type }}</span>
-              </div>
-              <div v-if="field.range" class="config-row">
-                <span class="label">范围:</span>
-                <span class="value">
-                  {{ field.range.rows ? `${field.range.rows}行` : '' }}
-                  {{ field.range.cols ? `${field.range.cols}列` : '' }}
-                  {{ field.range.skipEmpty ? '(跳过空行)' : '' }}
-                </span>
+
+              <div class="config-item-details">
+                <div class="detail-row">
+                  <span class="detail-label">位置</span>
+                  <span class="detail-value">{{ field.position.cellRef || field.position.areaRef || '-' }}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="detail-label">类型</span>
+                  <span class="detail-value">{{ field.type }}</span>
+                </div>
+                <div class="detail-row" v-if="field.range">
+                  <span class="detail-label">范围</span>
+                  <span class="detail-value">
+                    <span v-if="field.range.rows">{{ field.range.rows }}行</span>
+                    <span v-if="field.range.skipEmpty" class="hint">跳过空行</span>
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-
-          <el-empty v-if="fields.length === 0" description="请选择单元格并添加字段配置" />
         </div>
       </div>
     </div>
@@ -126,11 +187,12 @@
     <!-- 添加字段对话框 -->
     <el-dialog
       v-model="showAddField"
-      title="添加字段"
-      width="500px"
+      title="添加字段配置"
+      width="480px"
+      :close-on-click-modal="false"
       @close="resetForm"
     >
-      <el-form :model="newField" label-width="80px">
+      <el-form :model="newField" label-width="76px" label-position="left">
         <el-form-item label="字段名" required>
           <el-input
             v-model="newField.key"
@@ -138,20 +200,20 @@
           />
         </el-form-item>
         <el-form-item label="提取模式" required>
-          <el-select v-model="newField.extractMode" style="width: 100%">
-            <el-option label="单一单元格 (SINGLE)" value="SINGLE" />
-            <el-option label="向下列表 (DOWN)" value="DOWN" />
-            <el-option label="向右列表 (RIGHT)" value="RIGHT" />
-            <el-option label="区域块 (BLOCK)" value="BLOCK" />
-            <el-option label="直到空值 (UNTIL_EMPTY)" value="UNTIL_EMPTY" />
+          <el-select v-model="newField.extractMode" style="width: 100%" placeholder="请选择提取模式">
+            <el-option label="📍 单一单元格 (SINGLE)" value="SINGLE" />
+            <el-option label="⬇️ 向下列表 (DOWN)" value="DOWN" />
+            <el-option label="➡️ 向右列表 (RIGHT)" value="RIGHT" />
+            <el-option label="📦 区域块 (BLOCK)" value="BLOCK" />
+            <el-option label="🔚 直到空值 (UNTIL_EMPTY)" value="UNTIL_EMPTY" />
           </el-select>
         </el-form-item>
         <el-form-item label="数据类型" required>
-          <el-select v-model="newField.type" style="width: 100%">
-            <el-option label="字符串" value="STRING" />
-            <el-option label="数字" value="NUMBER" />
-            <el-option label="日期" value="DATE" />
-            <el-option label="布尔值" value="BOOLEAN" />
+          <el-select v-model="newField.type" style="width: 100%" placeholder="请选择数据类型">
+            <el-option label="🔤 字符串 (STRING)" value="STRING" />
+            <el-option label="🔢 数字 (NUMBER)" value="NUMBER" />
+            <el-option label="📅 日期 (DATE)" value="DATE" />
+            <el-option label="✅ 布尔值 (BOOLEAN)" value="BOOLEAN" />
           </el-select>
         </el-form-item>
         <el-form-item label="是否必填">
@@ -160,11 +222,13 @@
 
         <!-- 范围配置 -->
         <template v-if="['DOWN', 'RIGHT', 'BLOCK'].includes(newField.extractMode)">
+          <el-divider content-position="left">范围设置</el-divider>
           <el-form-item label="行数">
             <el-input-number
               v-model.number="newField.range!.rows"
               :min="1"
               style="width: 100%"
+              placeholder="提取的行数"
             />
           </el-form-item>
           <el-form-item label="列数" v-if="newField.extractMode === 'BLOCK'">
@@ -172,6 +236,7 @@
               v-model.number="newField.range!.cols"
               :min="1"
               style="width: 100%"
+              placeholder="提取的列数"
             />
           </el-form-item>
           <el-form-item label="跳过空行">
@@ -181,17 +246,23 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="showAddField = false">取消</el-button>
-        <el-button type="primary" @click="confirmAddField">确定</el-button>
+        <div class="dialog-footer">
+          <el-button @click="showAddField = false">取消</el-button>
+          <el-button type="primary" @click="confirmAddField">确定</el-button>
+        </div>
       </template>
     </el-dialog>
 
     <!-- JSON 预览对话框 -->
-    <el-dialog v-model="showJsonPreview" title="生成的配置" width="600px">
-      <pre class="json-preview">{{ jsonPreview }}</pre>
+    <el-dialog v-model="showJsonPreview" title="配置预览" width="640px">
+      <div class="json-container">
+        <pre class="json-preview">{{ jsonPreview }}</pre>
+      </div>
       <template #footer>
-        <el-button @click="showJsonPreview = false">关闭</el-button>
-        <el-button type="primary" @click="handleDownloadFromPreview">下载</el-button>
+        <div class="dialog-footer">
+          <el-button @click="showJsonPreview = false">关闭</el-button>
+          <el-button type="primary" @click="handleDownloadFromPreview">下载 JSON</el-button>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -199,7 +270,17 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { UploadFilled } from '@element-plus/icons-vue';
+import {
+  UploadFilled,
+  Document,
+  Download,
+  CopyDocument,
+  FolderChecked,
+  Refresh,
+  Setting,
+  Plus,
+  Close,
+} from '@element-plus/icons-vue';
 import {
   ElMessage,
   ElUpload,
@@ -213,14 +294,14 @@ import {
   ElSwitch,
   ElDialog,
   ElEmpty,
+  ElTag,
+  ElDivider,
 } from 'element-plus';
 
 import type {
   ExcelConfigEditorProps,
   ExcelConfigEditorEmits,
   FieldConfig,
-  ExcelConfig,
-  CellRange,
 } from '../types';
 
 import { toExcelConfig, downloadJson, copyToClipboard } from '../utils/configGenerator';
@@ -242,13 +323,18 @@ const showJsonPreview = ref(false);
 const jsonPreview = ref('');
 const localTemplateName = ref(props.templateName);
 
+// 选中的单元格
+const selectedRow = ref<number>(-1);
+const selectedCol = ref<number>(-1);
+const selectedCell = ref<string>('');
+
 // Univer hooks
 const { loadExcelFile, getExcelData, getHeaders } = useUniver();
 
 // 表格数据
 const tableData = computed(() => {
   const data = getExcelData();
-  return data.slice(1); // 跳过表头
+  return data.slice(1);
 });
 
 const tableHeaders = computed(() => {
@@ -270,9 +356,6 @@ const newField = ref<FieldConfig>({
   },
 });
 
-// 当前选区
-const currentSelection = ref<CellRange | null>(null);
-
 // 处理文件上传
 const handleFileChange = async (file: any) => {
   const rawFile = file.raw as File;
@@ -282,7 +365,7 @@ const handleFileChange = async (file: any) => {
 
   try {
     await loadExcelFile(rawFile);
-    ElMessage.success(`已加载文件：${rawFile.name}`);
+    ElMessage.success(`已加载：${rawFile.name}`);
   } catch (error) {
     console.error('加载失败:', error);
     ElMessage.error('加载 Excel 失败');
@@ -294,27 +377,27 @@ const handleFileChange = async (file: any) => {
 const resetFile = () => {
   excelFile.value = null;
   fields.value = [];
+  selectedRow.value = -1;
+  selectedCol.value = -1;
+  selectedCell.value = '';
 };
 
 // 单元格点击
 const handleCellClick = (rowIndex: number, colIndex: number, cellValue: any) => {
-  currentSelection.value = {
-    startRow: rowIndex,
-    endRow: rowIndex,
-    startColumn: colIndex,
-    endColumn: colIndex,
-  };
+  selectedRow.value = rowIndex;
+  selectedCol.value = colIndex;
 
-  // 自动填充字段信息
+  const colLetter = String.fromCharCode(65 + colIndex);
+  const rowNum = rowIndex + 2; // +2: 表头占一行，行号从 1 开始
+  selectedCell.value = `${colLetter}${rowNum}`;
+
   const header = tableHeaders.value[colIndex] || '';
-  // +1 因为表头占第一行，rowIndex 从 0 开始是数据第一行
-  const cellRef = `${String.fromCharCode(65 + colIndex)}${rowIndex + 2}`;
 
   newField.value = {
     id: '',
     key: header || `field_${rowIndex}_${colIndex}`,
     position: {
-      cellRef,
+      cellRef: `${colLetter}${rowNum}`,
       headerName: header,
     },
     extractMode: 'DOWN',
@@ -340,7 +423,6 @@ const resetForm = () => {
     required: false,
     range: { rows: 1, cols: 1, skipEmpty: false },
   };
-  currentSelection.value = null;
 };
 
 // 确认添加字段
@@ -372,7 +454,7 @@ const confirmAddField = () => {
 const deleteField = (id: string) => {
   fields.value = fields.value.filter((f) => f.id !== id);
   emitConfigChange();
-  ElMessage.info('已删除字段');
+  ElMessage.info('已删除');
 };
 
 // 发出配置变化事件
@@ -393,14 +475,14 @@ const handleGenerate = () => {
 const handleDownload = () => {
   const config = toExcelConfig(fields.value, localTemplateName.value);
   downloadJson(config);
-  ElMessage.success('JSON 文件已下载');
+  ElMessage.success('JSON 已下载');
 };
 
 const handleDownloadFromPreview = () => {
   const config = toExcelConfig(fields.value, localTemplateName.value);
   downloadJson(config);
   showJsonPreview.value = false;
-  ElMessage.success('JSON 文件已下载');
+  ElMessage.success('JSON 已下载');
 };
 
 // 复制 JSON
@@ -409,322 +491,510 @@ const handleCopy = async () => {
   const json = JSON.stringify(config, null, 2);
   const success = await copyToClipboard(json);
   if (success) {
-    ElMessage.success('JSON 已复制到剪贴板');
+    ElMessage.success('已复制到剪贴板');
   }
 };
 
-// 暴露方法给外部
+// 暴露方法
 defineExpose({
   getFields: () => fields.value,
   getConfig: () => toExcelConfig(fields.value, localTemplateName.value),
-  loadConfig: (_config: ExcelConfig) => {
-    // TODO: 加载已有配置
-    ElMessage.info('加载配置功能开发中...');
-  },
 });
 </script>
 
-<style lang="css" scoped>
+<style lang="css">
+/* ===== 整体布局 ===== */
 .excel-config-editor {
   display: flex;
   flex-direction: column;
   height: 100%;
-  border: 1px solid #dcdfe6;
+  background: #f8f9fa;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* ===== 顶部工具栏 ===== */
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 56px;
+  padding: 0 20px;
   background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.toolbar-left,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo-icon {
+  font-size: 24px;
+}
+
+.logo-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #e0e0e0;
+  margin: 0 8px;
+}
+
+.template-input {
+  width: 200px;
+}
+
+/* ===== 状态栏 ===== */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 32px;
+  padding: 0 16px;
+  background: #fff;
+  border-bottom: 1px solid #e8eaed;
+  font-size: 12px;
+  color: #5f6368;
+}
+
+.status-left,
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ===== 主内容区 ===== */
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ===== 表格区域 ===== */
+.sheet-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #f8f9fa;
+}
+
+/* 上传遮罩 */
+.upload-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.8);
+  backdrop-filter: blur(4px);
+}
+
+.upload-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  padding: 8px;
+}
+
+.upload-content {
+  padding: 60px 80px;
+  text-align: center;
+}
+
+.upload-icon {
+  font-size: 64px;
+  color: #4285f4;
+  margin-bottom: 16px;
+}
+
+.upload-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+
+.upload-subtitle {
+  font-size: 14px;
+  color: #5f6368;
+  margin-bottom: 16px;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: #9aa0a6;
+}
+
+.upload-actions {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+}
+
+/* 电子表格容器 */
+.spreadsheet {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* 公式栏 */
+.formula-bar {
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 12px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  gap: 8px;
+}
+
+.formula-label {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f3f4;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5f6368;
+  font-style: italic;
+}
+
+.formula-input {
+  flex: 1;
+  height: 24px;
+  padding: 0 8px;
+  background: #f1f3f4;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+}
+
+/* 表格包装器 */
+.table-wrapper {
+  flex: 1;
+  overflow: auto;
+  background: #fff;
+}
+
+/* 电子表格 */
+.spreadsheet-table {
+  border-collapse: collapse;
+  min-width: 100%;
+}
+
+/* 角落单元格 */
+.corner-cell {
+  width: 50px;
+  height: 28px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 100;
+}
+
+/* 列表头 */
+.col-header {
+  min-width: 100px;
+  height: 42px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  padding: 0;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: table-cell;
+}
+
+.col-header.empty {
+  background: #f8f9fa;
+}
+
+.col-header.selected {
+  background: #e3f2fd;
+}
+
+.col-letter {
+  display: block;
+  font-size: 11px;
+  color: #5f6368;
+  font-weight: 500;
+  padding: 4px 8px 0;
+}
+
+.col-content {
+  display: block;
+  font-size: 12px;
+  color: #1a1a1a;
+  font-weight: 500;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 行头 */
+.row-header {
+  width: 50px;
+  height: 32px;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  text-align: center;
+  font-size: 12px;
+  color: #5f6368;
+  font-weight: 500;
+  position: sticky;
+  left: 0;
+  z-index: 40;
+}
+
+.row-header.selected {
+  background: #e3f2fd;
+  color: #1967d2;
+}
+
+/* 单元格 */
+.cell {
+  min-width: 100px;
+  height: 32px;
+  border: 1px solid #e0e0e0;
+  padding: 0 8px;
+  font-size: 13px;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cell:hover {
+  border-color: #1967d2;
+  background: rgba(25, 103, 210, 0.04);
+}
+
+.cell.selected {
+  border: 2px solid #1967d2;
+  background: rgba(25, 103, 210, 0.08);
+  position: relative;
+  z-index: 10;
+}
+
+.cell.header-row {
+  font-weight: 500;
+  background: rgba(0,0,0,0.02);
+}
+
+.cell-content {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selected-row {
+  background: rgba(25, 103, 210, 0.02);
+}
+
+/* ===== 配置面板 ===== */
+.config-panel {
+  width: 360px;
+  background: #fff;
+  border-left: 1px solid #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.04);
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid #e8eaed;
+  background: #fafbfc;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.config-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  background: #f8f9fa;
+}
+
+.config-item {
+  margin-bottom: 8px;
+}
+
+.config-item-main {
+  background: #fff;
+  border: 1px solid #e0e0e0;
   border-radius: 8px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: all 0.2s;
+}
 
-  .toolbar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid #e4e7ed;
-    background: linear-gradient(to right, #f5f7fa, #fafafa);
-    border-radius: 8px 8px 0 0;
+.config-item-main:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  border-color: #1967d2;
+}
 
-    .toolbar-left,
-    .toolbar-right {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-  }
+.config-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: linear-gradient(to bottom, #fafbfc, #fff);
+  border-bottom: 1px solid #f1f3f4;
+}
 
-  .main-content {
-    display: flex;
-    flex: 1;
-    overflow: hidden;
+.field-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-    .sheet-area {
-      flex: 1;
-      min-width: 500px;
-      border-right: 1px solid #e4e7ed;
-      position: relative;
-      background: #f8f9fa;
-      overflow: hidden;
+.field-index {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f0fe;
+  color: #1967d2;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 50%;
+}
 
-      .upload-area {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-        padding: 60px 40px;
+.field-key {
+  font-weight: 500;
+  color: #1a1a1a;
+  font-size: 14px;
+}
 
-        :deep(.el-upload) {
-          width: 100%;
-          max-width: 480px;
-          border: 2px dashed #dcdfe6;
-          border-radius: 12px;
-          background: #fff;
-          transition: border-color 0.3s;
-        }
+.field-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-        :deep(.el-upload:hover) {
-          border-color: #409eff;
-        }
+.config-item-details {
+  padding: 10px 14px;
+}
 
-        :deep(.el-upload-dragger) {
-          padding: 40px 20px;
-          border: none;
-        }
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 12px;
+}
 
-        :deep(.el-icon--upload) {
-          font-size: 56px;
-          color: #409eff;
-          margin-bottom: 16px;
-        }
+.detail-label {
+  color: #5f6368;
+}
 
-        :deep(.el-upload__text) {
-          color: #606266;
-          font-size: 14px;
-        }
+.detail-value {
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 
-        :deep(.el-upload__text em) {
-          color: #409eff;
-          font-style: normal;
-          text-decoration: underline;
-        }
+.detail-value .hint {
+  color: #1967d2;
+  font-size: 11px;
+  background: rgba(25, 103, 210, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
 
-        :deep(.el-upload__tip) {
-          color: #909399;
-          font-size: 12px;
-          margin-top: 8px;
-        }
-      }
+/* ===== 对话框 ===== */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
 
-      .univer-container {
-        width: 100%;
-        height: 100%;
-        background: #fff;
-      }
+.json-container {
+  background: #1a1a1a;
+  border-radius: 8px;
+  overflow: hidden;
+}
 
-      /* Excel 预览表格 */
-      .excel-preview {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
+.json-preview {
+  background: #0d1117;
+  color: #e6edf3;
+  padding: 20px;
+  margin: 0;
+  max-height: 400px;
+  overflow-y: auto;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
 
-        .excel-preview-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 16px;
-          background: #fff;
-          border-bottom: 1px solid #e4e7ed;
+/* ===== 滚动条 ===== */
+.table-wrapper::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
 
-          .file-name {
-            font-weight: 600;
-            color: #303133;
-            font-size: 14px;
-          }
-        }
+.table-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
 
-        .table-container {
-          flex: 1;
-          overflow: auto;
-          background: #fff;
-          padding: 1px;
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 5px;
+}
 
-          .excel-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 13px;
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #a1a1a1;
+}
 
-            th, td {
-              border: 1px solid #dcdfe6;
-              padding: 8px 12px;
-              text-align: left;
-              min-width: 80px;
-              max-width: 200px;
-              overflow: hidden;
-              text-overflow: ellipsis;
-              white-space: nowrap;
-            }
+.config-list::-webkit-scrollbar {
+  width: 6px;
+}
 
-            th {
-              background: linear-gradient(to bottom, #f5f7fa, #e9ecef);
-              font-weight: 600;
-              color: #303133;
-              position: sticky;
-              top: 0;
-              z-index: 10;
-            }
-
-            .row-header,
-            .col-header {
-              background: #f5f7fa;
-              color: #606266;
-              font-weight: 600;
-              text-align: center;
-              min-width: 50px;
-            }
-
-            .row-header {
-              position: sticky;
-              left: 0;
-              z-index: 11;
-              width: 50px;
-            }
-
-            .cell {
-              cursor: pointer;
-              transition: all 0.2s;
-
-              &:hover {
-                background: rgba(64, 158, 255, 0.1);
-              }
-
-              &.header-cell {
-                font-weight: 600;
-                background: rgba(64, 158, 255, 0.05);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    .config-panel {
-      width: 340px;
-      display: flex;
-      flex-direction: column;
-      background: #fff;
-
-      .config-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px 20px;
-        border-bottom: 1px solid #e4e7ed;
-        background: #fafafa;
-
-        h3 {
-          margin: 0;
-          font-size: 15px;
-          font-weight: 600;
-          color: #303133;
-        }
-      }
-
-      .config-list {
-        flex: 1;
-        overflow-y: auto;
-        padding: 12px;
-        background: #f5f7fa;
-
-        .config-item {
-          margin-bottom: 12px;
-          border: 1px solid #e4e7ed;
-          border-radius: 8px;
-          background: #fff;
-          transition: box-shadow 0.3s;
-
-          &:hover {
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-          }
-
-          .config-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
-            border-bottom: 1px solid #f0f2f5;
-            background: linear-gradient(to right, #fafafa, #fff);
-            border-radius: 8px 8px 0 0;
-
-            .field-key {
-              font-weight: 600;
-              color: #303133;
-              font-size: 14px;
-            }
-
-            .field-mode {
-              font-size: 11px;
-              color: #409eff;
-              background: rgba(64, 158, 255, 0.1);
-              padding: 3px 8px;
-              border-radius: 4px;
-              font-weight: 500;
-            }
-
-            .delete-btn {
-              font-size: 12px;
-              padding: 4px 8px;
-            }
-          }
-
-          .config-item-body {
-            padding: 12px 16px;
-
-            .config-row {
-              display: flex;
-              justify-content: space-between;
-              font-size: 13px;
-              margin-bottom: 8px;
-              line-height: 1.5;
-
-              &:last-child {
-                margin-bottom: 0;
-              }
-
-              .label {
-                color: #909399;
-                font-weight: 500;
-              }
-
-              .value {
-                color: #606266;
-                text-align: right;
-                max-width: 60%;
-              }
-            }
-          }
-        }
-
-        :deep(.el-empty) {
-          padding: 40px 0;
-        }
-
-        :deep(.el-empty__description) {
-          color: #909399;
-          font-size: 13px;
-        }
-      }
-    }
-  }
-
-  .json-preview {
-    background: #f5f7fa;
-    padding: 16px;
-    border-radius: 6px;
-    max-height: 400px;
-    overflow-y: auto;
-    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-    font-size: 12px;
-    line-height: 1.6;
-    color: #303133;
-    border: 1px solid #e4e7ed;
-  }
+.config-list::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 3px;
 }
 </style>
