@@ -23,7 +23,7 @@ export function fieldToBackend(field: FieldConfig): BackendFieldConfig {
 /**
  * 从单元格引用中提取行号（用于 header 的 row 字段）
  */
-function parseRowFromCellRef(cellRef: string): number {
+export function parseRowFromCellRef(cellRef: string): number {
   const match = cellRef.match(/^([A-Z]+)(\d+)$/);
   if (match) {
     return parseInt(match[2]) - 1;

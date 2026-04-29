@@ -39,7 +39,40 @@
             </template>
           </el-upload>
         </div>
-        <div ref="univerContainer" class="univer-container" v-else></div>
+
+        <!-- Excel 数据显示 -->
+        <div class="excel-preview" v-else>
+          <div class="excel-preview-header">
+            <span class="file-name">{{ excelFile.name }}</span>
+            <el-button size="small" @click="resetFile">重新上传</el-button>
+          </div>
+          <div class="table-container">
+            <table class="excel-table">
+              <thead>
+                <tr>
+                  <th class="row-header"></th>
+                  <th v-for="(header, index) in tableHeaders" :key="index" class="col-header">
+                    {{ header || `(空)` }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, rowIndex) in tableData" :key="rowIndex">
+                  <td class="row-header">{{ rowIndex + 1 }}</td>
+                  <td
+                    v-for="(cell, colIndex) in row"
+                    :key="colIndex"
+                    class="cell"
+                    :class="{ 'header-cell': rowIndex === 0 }"
+                    @click="handleCellClick(rowIndex, colIndex, cell)"
+                  >
+                    {{ cell ?? '' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
       <!-- 配置面板 -->
@@ -165,7 +198,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed } from 'vue';
 import { UploadFilled } from '@element-plus/icons-vue';
 import {
   ElMessage,
@@ -203,12 +236,24 @@ const emit = defineEmits<ExcelConfigEditorEmits>();
 
 // 状态
 const excelFile = ref<File | null>(null);
-const univerContainer = ref<HTMLElement | null>(null);
 const fields = ref<FieldConfig[]>([]);
 const showAddField = ref(false);
 const showJsonPreview = ref(false);
 const jsonPreview = ref('');
 const localTemplateName = ref(props.templateName);
+
+// Univer hooks
+const { loadExcelFile, getExcelData, getHeaders } = useUniver();
+
+// 表格数据
+const tableData = computed(() => {
+  const data = getExcelData();
+  return data.slice(1); // 跳过表头
+});
+
+const tableHeaders = computed(() => {
+  return getHeaders();
+});
 
 // 新字段表单
 const newField = ref<FieldConfig>({
@@ -225,22 +270,8 @@ const newField = ref<FieldConfig>({
   },
 });
 
-// Univer 初始化
-const { initUniver, disposeUniver, loadExcelFile } = useUniver();
-
 // 当前选区
 const currentSelection = ref<CellRange | null>(null);
-
-// 生命周期
-onMounted(() => {
-  if (univerContainer.value) {
-    initUniver(univerContainer.value);
-  }
-});
-
-onBeforeUnmount(() => {
-  disposeUniver();
-});
 
 // 处理文件上传
 const handleFileChange = async (file: any) => {
@@ -249,14 +280,53 @@ const handleFileChange = async (file: any) => {
 
   excelFile.value = rawFile;
 
-  // 等待 DOM 更新后初始化 Univer
-  setTimeout(() => {
-    if (univerContainer.value) {
-      loadExcelFile(univerContainer.value, rawFile);
-    }
-  }, 100);
+  try {
+    await loadExcelFile(rawFile);
+    ElMessage.success(`已加载文件：${rawFile.name}`);
+  } catch (error) {
+    console.error('加载失败:', error);
+    ElMessage.error('加载 Excel 失败');
+    excelFile.value = null;
+  }
+};
 
-  ElMessage.success(`已加载文件：${rawFile.name}`);
+// 重新上传
+const resetFile = () => {
+  excelFile.value = null;
+  fields.value = [];
+};
+
+// 单元格点击
+const handleCellClick = (rowIndex: number, colIndex: number, cellValue: any) => {
+  currentSelection.value = {
+    startRow: rowIndex,
+    endRow: rowIndex,
+    startColumn: colIndex,
+    endColumn: colIndex,
+  };
+
+  // 自动填充字段信息
+  const header = tableHeaders.value[colIndex] || '';
+  // +1 因为表头占第一行，rowIndex 从 0 开始是数据第一行
+  const cellRef = `${String.fromCharCode(65 + colIndex)}${rowIndex + 2}`;
+
+  newField.value = {
+    id: '',
+    key: header || `field_${rowIndex}_${colIndex}`,
+    position: {
+      cellRef,
+      headerName: header,
+    },
+    extractMode: 'DOWN',
+    type: typeof cellValue === 'number' ? 'NUMBER' : 'STRING',
+    required: false,
+    range: {
+      rows: tableData.value.length - rowIndex,
+      skipEmpty: true,
+    },
+  };
+
+  showAddField.value = true;
 };
 
 // 重置表单
@@ -359,21 +429,24 @@ defineExpose({
   display: flex;
   flex-direction: column;
   height: 100%;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #dcdfe6;
   background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.08);
 
   .toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid #e0e0e0;
-    background: #f5f7fa;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e4e7ed;
+    background: linear-gradient(to right, #f5f7fa, #fafafa);
+    border-radius: 8px 8px 0 0;
 
     .toolbar-left,
     .toolbar-right {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: center;
     }
   }
@@ -385,116 +458,273 @@ defineExpose({
 
     .sheet-area {
       flex: 1;
-      min-width: 600px;
-      border-right: 1px solid #e0e0e0;
+      min-width: 500px;
+      border-right: 1px solid #e4e7ed;
       position: relative;
+      background: #f8f9fa;
+      overflow: hidden;
 
       .upload-area {
         display: flex;
         align-items: center;
         justify-content: center;
         height: 100%;
-        padding: 40px;
+        padding: 60px 40px;
 
         :deep(.el-upload) {
           width: 100%;
-          max-width: 500px;
+          max-width: 480px;
+          border: 2px dashed #dcdfe6;
+          border-radius: 12px;
+          background: #fff;
+          transition: border-color 0.3s;
+        }
+
+        :deep(.el-upload:hover) {
+          border-color: #409eff;
+        }
+
+        :deep(.el-upload-dragger) {
+          padding: 40px 20px;
+          border: none;
+        }
+
+        :deep(.el-icon--upload) {
+          font-size: 56px;
+          color: #409eff;
+          margin-bottom: 16px;
+        }
+
+        :deep(.el-upload__text) {
+          color: #606266;
+          font-size: 14px;
+        }
+
+        :deep(.el-upload__text em) {
+          color: #409eff;
+          font-style: normal;
+          text-decoration: underline;
+        }
+
+        :deep(.el-upload__tip) {
+          color: #909399;
+          font-size: 12px;
+          margin-top: 8px;
         }
       }
 
       .univer-container {
         width: 100%;
         height: 100%;
+        background: #fff;
+      }
+
+      /* Excel 预览表格 */
+      .excel-preview {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+
+        .excel-preview-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          background: #fff;
+          border-bottom: 1px solid #e4e7ed;
+
+          .file-name {
+            font-weight: 600;
+            color: #303133;
+            font-size: 14px;
+          }
+        }
+
+        .table-container {
+          flex: 1;
+          overflow: auto;
+          background: #fff;
+          padding: 1px;
+
+          .excel-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+
+            th, td {
+              border: 1px solid #dcdfe6;
+              padding: 8px 12px;
+              text-align: left;
+              min-width: 80px;
+              max-width: 200px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+            }
+
+            th {
+              background: linear-gradient(to bottom, #f5f7fa, #e9ecef);
+              font-weight: 600;
+              color: #303133;
+              position: sticky;
+              top: 0;
+              z-index: 10;
+            }
+
+            .row-header,
+            .col-header {
+              background: #f5f7fa;
+              color: #606266;
+              font-weight: 600;
+              text-align: center;
+              min-width: 50px;
+            }
+
+            .row-header {
+              position: sticky;
+              left: 0;
+              z-index: 11;
+              width: 50px;
+            }
+
+            .cell {
+              cursor: pointer;
+              transition: all 0.2s;
+
+              &:hover {
+                background: rgba(64, 158, 255, 0.1);
+              }
+
+              &.header-cell {
+                font-weight: 600;
+                background: rgba(64, 158, 255, 0.05);
+              }
+            }
+          }
+        }
       }
     }
 
     .config-panel {
-      width: 320px;
+      width: 340px;
       display: flex;
       flex-direction: column;
-      background: #fafafa;
+      background: #fff;
 
       .config-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 12px 16px;
-        border-bottom: 1px solid #e0e0e0;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e4e7ed;
+        background: #fafafa;
 
         h3 {
           margin: 0;
-          font-size: 14px;
+          font-size: 15px;
           font-weight: 600;
+          color: #303133;
         }
       }
 
       .config-list {
         flex: 1;
         overflow-y: auto;
-        padding: 8px;
+        padding: 12px;
+        background: #f5f7fa;
 
         .config-item {
-          margin-bottom: 8px;
-          border: 1px solid #e0e0e0;
-          border-radius: 4px;
+          margin-bottom: 12px;
+          border: 1px solid #e4e7ed;
+          border-radius: 8px;
           background: #fff;
+          transition: box-shadow 0.3s;
+
+          &:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+          }
 
           .config-item-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 12px;
-            border-bottom: 1px solid #f0f0f0;
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f2f5;
+            background: linear-gradient(to right, #fafafa, #fff);
+            border-radius: 8px 8px 0 0;
 
             .field-key {
               font-weight: 600;
-              color: #333;
+              color: #303133;
+              font-size: 14px;
             }
 
             .field-mode {
+              font-size: 11px;
+              color: #409eff;
+              background: rgba(64, 158, 255, 0.1);
+              padding: 3px 8px;
+              border-radius: 4px;
+              font-weight: 500;
+            }
+
+            .delete-btn {
               font-size: 12px;
-              color: #666;
-              background: #f0f0f0;
-              padding: 2px 6px;
-              border-radius: 2px;
+              padding: 4px 8px;
             }
           }
 
           .config-item-body {
-            padding: 8px 12px;
+            padding: 12px 16px;
 
             .config-row {
               display: flex;
               justify-content: space-between;
-              font-size: 12px;
-              margin-bottom: 4px;
+              font-size: 13px;
+              margin-bottom: 8px;
+              line-height: 1.5;
 
               &:last-child {
                 margin-bottom: 0;
               }
 
               .label {
-                color: #666;
+                color: #909399;
+                font-weight: 500;
               }
 
               .value {
-                color: #333;
+                color: #606266;
+                text-align: right;
+                max-width: 60%;
               }
             }
           }
+        }
+
+        :deep(.el-empty) {
+          padding: 40px 0;
+        }
+
+        :deep(.el-empty__description) {
+          color: #909399;
+          font-size: 13px;
         }
       }
     }
   }
 
   .json-preview {
-    background: #f5f5f5;
+    background: #f5f7fa;
     padding: 16px;
-    border-radius: 4px;
+    border-radius: 6px;
     max-height: 400px;
     overflow-y: auto;
-    font-family: 'Monaco', 'Consolas', monospace;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
     font-size: 12px;
+    line-height: 1.6;
+    color: #303133;
+    border: 1px solid #e4e7ed;
   }
 }
 </style>

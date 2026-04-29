@@ -38,23 +38,24 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "vue": "^3.5.32",
     "@univerjs/core": "0.21.1",
-    "@univerjs/preset-sheets-core": "0.21.1",
     "@univerjs/design": "0.21.1",
     "@univerjs/icons": "1.1.1",
-    "element-plus": "^2.9.10"
+    "@univerjs/preset-sheets-core": "0.21.1",
+    "element-plus": "^2.9.0",
+    "vue": "^3.5.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.6",
     "@types/node": "^24.12.2",
+    "@vitejs/plugin-vue": "^6.0.6",
+    "@vue/tsconfig": "^0.9.1",
     "typescript": "~6.0.2",
     "vite": "^8.0.10",
-    "vue-tsc": "^3.2.7",
-    "@vue/tsconfig": "^0.9.1"
+    "vue-tsc": "^3.2.7"
   },
   "peerDependencies": {
-    "vue": "^3.5.0",
-    "element-plus": "^2.9.0"
+    "element-plus": "^2.9.0",
+    "vue": "^3.5.0"
   }
 }

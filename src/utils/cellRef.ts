@@ -11,7 +11,7 @@ export function getCellRef(row: number, col: number): string {
 /**
  * 列号转列名 0 => "A", 26 => "AA"
  */
-export function getColumnName(col: number): string {
+function getColumnName(col: number): string {
   let name = '';
   let n = col;
 
