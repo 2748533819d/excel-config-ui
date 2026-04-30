@@ -103,17 +103,33 @@
                   <td class="row-header" :class="{ 'selected': selectedRow === rowIndex }">
                     {{ rowIndex + 1 }}
                   </td>
+                  <!-- 渲染表头数量的单元格，确保空白单元格也能点击 -->
                   <td
-                    v-for="(cell, colIndex) in row"
-                    :key="colIndex"
+                    v-for="colIndex in maxColumns"
+                    :key="colIndex - 1"
                     class="cell"
                     :class="{
-                      'selected': selectedRow === rowIndex && selectedCol === colIndex,
-                      'header-row': rowIndex === 0
+                      'selected': selectedRow === rowIndex && selectedCol === colIndex - 1,
+                      'header-row': rowIndex === 0,
+                      'empty': !row[colIndex - 1]
                     }"
-                    @click="handleCellClick(rowIndex, colIndex, cell)"
+                    @click="handleCellClick(rowIndex, colIndex - 1, row[colIndex - 1])"
                   >
-                    <span class="cell-content">{{ cell ?? '' }}</span>
+                    <span class="cell-content">{{ row[colIndex - 1] ?? '' }}</span>
+                  </td>
+                </tr>
+                <!-- 添加额外的空行，方便用户配置空白区域 -->
+                <tr v-for="i in 5" :key="'empty-row-' + i" :class="{ 'selected-row': selectedRow >= tableData.length }">
+                  <td class="row-header">{{ tableData.length + i }}</td>
+                  <td
+                    v-for="colIndex in maxColumns"
+                    :key="'empty-' + colIndex"
+                    class="cell empty"
+                    :class="{
+                      'selected': selectedRow === tableData.length + i - 1 && selectedCol === colIndex - 1
+                    }"
+                    @click="handleCellClick(tableData.length + i - 1, colIndex - 1, null)"
+                  >
                   </td>
                 </tr>
               </tbody>
@@ -341,6 +357,13 @@ const tableHeaders = computed(() => {
   return getHeaders();
 });
 
+// 最大列数（表头和数据的最大值）
+const maxColumns = computed(() => {
+  const headerCount = tableHeaders.value.length;
+  const maxDataCols = Math.max(...tableData.value.map(row => row?.length || 0), 0);
+  return Math.max(headerCount, maxDataCols, 10); // 至少 10 列
+});
+
 // 新字段表单
 const newField = ref<FieldConfig>({
   id: '',
@@ -404,7 +427,7 @@ const handleCellClick = (rowIndex: number, colIndex: number, cellValue: any) => 
     type: typeof cellValue === 'number' ? 'NUMBER' : 'STRING',
     required: false,
     range: {
-      rows: tableData.value.length - rowIndex,
+      rows: Math.max(1, tableData.value.length - rowIndex),
       skipEmpty: true,
     },
   };
@@ -809,6 +832,15 @@ defineExpose({
 .cell.header-row {
   font-weight: 500;
   background: rgba(0,0,0,0.02);
+}
+
+.cell.empty {
+  color: #9aa0a6;
+  background: #fafbfc;
+}
+
+.cell.empty:hover {
+  background: rgba(25, 103, 210, 0.08);
 }
 
 .cell-content {
