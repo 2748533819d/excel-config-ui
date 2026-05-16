@@ -1,60 +1,63 @@
 <template>
-  <div class="excel-config-editor">
-    <!-- 顶部工具栏 -->
-    <div class="toolbar" v-if="showToolbar">
-      <div class="toolbar-left">
-        <div class="logo">
-          <span class="logo-icon">📊</span>
-          <span class="logo-text">Excel Config</span>
+  <div class="eced">
+    <header class="eced-toolbar" v-if="showToolbar">
+      <div class="eced-toolbar-left">
+        <div class="eced-brand">
+          <svg class="eced-brand-symbol" width="22" height="22" viewBox="0 0 22 22" fill="none">
+            <rect x="1.5" y="1.5" width="19" height="19" rx="4.5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M5.5 8h11M5.5 11h11M5.5 14h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <span class="eced-brand-name">Excel Config</span>
+          <span class="eced-brand-tag">0.1</span>
         </div>
-        <div class="toolbar-divider"></div>
+        <span class="eced-brand-sep"></span>
         <el-input
           v-model="localTemplateName"
           placeholder="模板名称"
-          class="template-input"
+          class="eced-tpl-input"
           @change="emitConfigChange"
         />
       </div>
-      <div class="toolbar-right">
-        <el-button @click="handleGenerate">
+      <div class="eced-toolbar-right">
+        <el-button class="eced-btn" @click="handleGenerate">
           <el-icon><Document /></el-icon>
           生成配置
         </el-button>
-        <el-button type="primary" plain @click="handleDownload">
+        <el-button class="eced-btn eced-btn--primary" @click="handleDownload">
           <el-icon><Download /></el-icon>
           下载
         </el-button>
-        <el-button type="primary" plain @click="handleCopy">
+        <el-button class="eced-btn eced-btn--primary" @click="handleCopy">
           <el-icon><CopyDocument /></el-icon>
           复制
         </el-button>
       </div>
-    </div>
+    </header>
 
-    <!-- 状态栏 -->
-    <div class="status-bar">
-      <div class="status-left">
-        <span class="status-item" v-if="excelFile">
-          <el-icon><FolderChecked /></el-icon>
-          {{ excelFile.name }}
+    <div class="eced-status">
+      <div class="eced-status-left">
+        <span class="eced-status-bullet" :class="{ 'is-live': !!excelFile }"></span>
+        <span class="eced-status-text" v-if="excelFile">
+          <span class="eced-status-file">{{ excelFile.name }}</span>
+          <span class="eced-status-divider">·</span>
+          已加载
         </span>
-        <span class="status-item" v-else>
-          请上传 Excel 文件
+        <span class="eced-status-text" v-else>
+          等待上传 Excel 文件
         </span>
       </div>
-      <div class="status-right">
-        <span class="status-item">
-          {{ fields.length }} 个字段配置
+      <div class="eced-status-right">
+        <span class="eced-status-count">
+          <span class="eced-count-num">{{ fields.length }}</span>
+          个字段
         </span>
       </div>
     </div>
 
-    <div class="main-content">
-      <!-- 表格区域 -->
-      <div class="sheet-area">
-        <!-- 上传区域 -->
-        <div class="upload-overlay" v-if="!excelFile">
-          <div class="upload-card">
+    <div class="eced-body">
+      <section class="eced-sheet">
+        <div class="eced-upload" v-if="!excelFile">
+          <div class="eced-upload-inner">
             <el-upload
               drag
               :auto-upload="false"
@@ -62,220 +65,220 @@
               :on-change="handleFileChange"
               :show-file-list="false"
             >
-              <div class="upload-content">
-                <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                <div class="upload-text">
-                  <div class="upload-title">拖拽 Excel 文件到此处</div>
-                  <div class="upload-subtitle">或点击上传</div>
+              <div class="eced-upload-drop">
+                <div class="eced-upload-glyph">
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <rect x="6" y="6" width="36" height="36" rx="8" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3"/>
+                    <path d="M24 14v20M14 24h20" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                  </svg>
                 </div>
-                <div class="upload-hint">支持 .xlsx, .xls 格式</div>
+                <p class="eced-upload-title">上传 Excel 文件</p>
+                <p class="eced-upload-hint">拖拽到此处或点击浏览</p>
+                <span class="eced-upload-types">.xlsx · .xls</span>
               </div>
             </el-upload>
           </div>
         </div>
 
-        <!-- Excel 表格预览 -->
-        <div class="spreadsheet" v-else>
-          <!-- 公式栏 -->
-          <div class="formula-bar">
-            <div class="formula-label">fx</div>
-            <div class="formula-input">{{ selectedCell || '' }}</div>
+        <div class="eced-grid" v-else>
+          <div class="eced-fx">
+            <span class="eced-fx-label">fx</span>
+            <span class="eced-fx-value" :class="{ 'is-idle': !selectedCell }">
+              {{ selectedCell || '单元格未选中' }}
+            </span>
           </div>
 
-          <!-- 表格容器 -->
-          <div class="table-wrapper">
-            <table class="spreadsheet-table">
+          <div class="eced-table-wrap">
+            <table class="eced-table">
               <thead>
                 <tr>
-                  <th class="corner-cell"></th>
-                  <th v-for="(header, index) in tableHeaders" :key="index" class="col-header" :class="{ 'selected': selectedCol === index }">
-                    <span class="col-letter">{{ String.fromCharCode(65 + index) }}</span>
-                    <span class="col-content">{{ header || '(空)' }}</span>
+                  <th class="eced-th eced-th--corner"></th>
+                  <th v-for="(h, i) in tableHeaders" :key="i"
+                    class="eced-th eced-th--col"
+                    :class="{ 'is-lit': selectedCol === i }"
+                  >
+                    <span class="eced-col-char">{{ String.fromCharCode(65 + i) }}</span>
+                    <span class="eced-col-label">{{ h || '(空)' }}</span>
                   </th>
-                  <!-- 填充空白列 -->
-                  <th v-for="i in 5" :key="'empty-' + i" class="col-header empty">
-                    <span class="col-letter">{{ String.fromCharCode(65 + tableHeaders.length + i) }}</span>
+                  <th v-for="j in 5" :key="'fc-' + j"
+                    class="eced-th eced-th--col eced-th--ghost"
+                  >
+                    <span class="eced-col-char">{{ String.fromCharCode(65 + tableHeaders.length + j) }}</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="(row, rowIndex) in tableData" :key="rowIndex" :class="{ 'selected-row': selectedRow === rowIndex }">
-                  <td class="row-header" :class="{ 'selected': selectedRow === rowIndex }">
-                    {{ rowIndex + 1 }}
-                  </td>
-                  <!-- 渲染表头数量的单元格，确保空白单元格也能点击 -->
+                <tr v-for="(row, ri) in tableData" :key="ri"
+                  :class="{ 'is-row-lit': selectedRow === ri }"
+                >
+                  <td class="eced-td eced-td--row"
+                    :class="{ 'is-lit': selectedRow === ri }"
+                  >{{ ri + 1 }}</td>
                   <td
-                    v-for="colIndex in maxColumns"
-                    :key="colIndex - 1"
-                    class="cell"
+                    v-for="ci in maxColumns" :key="ci - 1"
+                    class="eced-td eced-td--cell"
                     :class="{
-                      'selected': selectedRow === rowIndex && selectedCol === colIndex - 1,
-                      'header-row': rowIndex === 0,
-                      'empty': !row[colIndex - 1]
+                      'is-hit': selectedRow === ri && selectedCol === ci - 1,
+                      'is-head': ri === 0,
+                      'is-void': !row[ci - 1]
                     }"
-                    @click="handleCellClick(rowIndex, colIndex - 1, row[colIndex - 1])"
+                    @click="handleCellClick(ri, ci - 1, row[ci - 1])"
                   >
-                    <span class="cell-content">{{ row[colIndex - 1] ?? '' }}</span>
+                    <span class="eced-cell-val">{{ row[ci - 1] ?? '' }}</span>
                   </td>
                 </tr>
-                <!-- 添加额外的空行，方便用户配置空白区域 -->
-                <tr v-for="i in 5" :key="'empty-row-' + i" :class="{ 'selected-row': selectedRow >= tableData.length }">
-                  <td class="row-header">{{ tableData.length + i }}</td>
+                <tr v-for="k in 5" :key="'fr-' + k"
+                  :class="{ 'is-row-lit': selectedRow >= tableData.length }"
+                >
+                  <td class="eced-td eced-td--row">{{ tableData.length + k }}</td>
                   <td
-                    v-for="colIndex in maxColumns"
-                    :key="'empty-' + colIndex"
-                    class="cell empty"
+                    v-for="ci in maxColumns" :key="'vb-' + ci"
+                    class="eced-td eced-td--cell eced-td--void"
                     :class="{
-                      'selected': selectedRow === tableData.length + i - 1 && selectedCol === colIndex - 1
+                      'is-hit': selectedRow === tableData.length + k - 1 && selectedCol === ci - 1
                     }"
-                    @click="handleCellClick(tableData.length + i - 1, colIndex - 1, null)"
-                  >
-                  </td>
+                    @click="handleCellClick(tableData.length + k - 1, ci - 1, null)"
+                  ></td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <!-- 重新上传按钮 -->
-          <div class="upload-actions">
-            <el-button size="small" @click="resetFile">
-              <el-icon><Refresh /></el-icon>
+          <div class="eced-grid-foot">
+            <button class="eced-reload" @click="resetFile">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+                <path d="M11 7A4 4 0 1 1 7 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M11 3v2.5H8.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
               重新上传
-            </el-button>
+            </button>
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- 右侧配置面板 -->
-      <div class="config-panel">
-        <div class="config-header">
-          <div class="header-title">
-            <el-icon><Setting /></el-icon>
-            <span>字段配置</span>
+      <aside class="eced-panel">
+        <div class="eced-panel-head">
+          <div class="eced-panel-title">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+              <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2"/>
+            </svg>
+            字段配置
           </div>
           <el-button type="primary" size="small" @click="showAddField = true">
             <el-icon><Plus /></el-icon>
-            添加字段
+            添加
           </el-button>
         </div>
 
-        <div class="config-list">
-          <el-empty v-if="fields.length === 0" :image-size="80" description="点击表格中的单元格添加字段" />
+        <div class="eced-panel-list">
+          <div v-if="fields.length === 0" class="eced-panel-none">
+            <div class="eced-none-icon">
+              <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
+                <rect x="9" y="9" width="22" height="22" rx="4" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M17 20h6M20 17v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <p class="eced-none-text">点击表格中的单元格<br/>添加字段</p>
+          </div>
 
-          <div v-for="(field, index) in fields" :key="field.id" class="config-item">
-            <div class="config-item-main">
-              <div class="config-item-header">
-                <div class="field-info">
-                  <span class="field-index">{{ index + 1 }}</span>
-                  <span class="field-key">{{ field.key }}</span>
-                </div>
-                <div class="field-actions">
-                  <el-tag size="small" type="info">{{ field.extractMode }}</el-tag>
-                  <el-button link type="danger" size="small" @click="deleteField(field.id)">
-                    <el-icon><Close /></el-icon>
-                  </el-button>
-                </div>
+          <div v-for="(f, i) in fields" :key="f.id" class="eced-card">
+            <div class="eced-card-head">
+              <div class="eced-card-meta">
+                <span class="eced-card-num">{{ i + 1 }}</span>
+                <span class="eced-card-key">{{ f.key }}</span>
               </div>
-
-              <div class="config-item-details">
-                <div class="detail-row">
-                  <span class="detail-label">位置</span>
-                  <span class="detail-value">{{ field.position.cellRef || field.position.areaRef || '-' }}</span>
-                </div>
-                <div class="detail-row">
-                  <span class="detail-label">类型</span>
-                  <span class="detail-value">{{ field.type }}</span>
-                </div>
-                <div class="detail-row" v-if="field.range">
-                  <span class="detail-label">范围</span>
-                  <span class="detail-value">
-                    <span v-if="field.range.rows">{{ field.range.rows }}行</span>
-                    <span v-if="field.range.skipEmpty" class="hint">跳过空行</span>
-                  </span>
-                </div>
+              <div class="eced-card-ops">
+                <span class="eced-card-mode">{{ f.extractMode }}</span>
+                <button class="eced-card-del" @click="deleteField(f.id)">
+                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                    <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div class="eced-card-body">
+              <div class="eced-card-row">
+                <span class="eced-card-lbl">位置</span>
+                <span class="eced-card-val eced-card-val--mono">{{ f.position.cellRef || f.position.areaRef || '-' }}</span>
+              </div>
+              <div class="eced-card-row">
+                <span class="eced-card-lbl">类型</span>
+                <span class="eced-card-val">{{ f.type }}</span>
+              </div>
+              <div class="eced-card-row" v-if="f.range">
+                <span class="eced-card-lbl">范围</span>
+                <span class="eced-card-val">
+                  <span v-if="f.range.rows">{{ f.range.rows }} 行</span>
+                  <span v-if="f.range.skipEmpty" class="eced-card-skip">跳过空行</span>
+                </span>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </aside>
     </div>
 
-    <!-- 添加字段对话框 -->
     <el-dialog
       v-model="showAddField"
-      title="添加字段配置"
-      width="480px"
+      title="添加字段"
+      width="460px"
       :close-on-click-modal="false"
+      class="eced-dlg"
       @close="resetForm"
     >
-      <el-form :model="newField" label-width="76px" label-position="left">
+      <el-form :model="newField" label-width="80px" label-position="left">
         <el-form-item label="字段名" required>
-          <el-input
-            v-model="newField.key"
-            placeholder="如：orderNo"
-          />
+          <el-input v-model="newField.key" placeholder="如 orderNo" />
         </el-form-item>
         <el-form-item label="提取模式" required>
-          <el-select v-model="newField.extractMode" style="width: 100%" placeholder="请选择提取模式">
-            <el-option label="📍 单一单元格 (SINGLE)" value="SINGLE" />
-            <el-option label="⬇️ 向下列表 (DOWN)" value="DOWN" />
-            <el-option label="➡️ 向右列表 (RIGHT)" value="RIGHT" />
-            <el-option label="📦 区域块 (BLOCK)" value="BLOCK" />
-            <el-option label="🔚 直到空值 (UNTIL_EMPTY)" value="UNTIL_EMPTY" />
+          <el-select v-model="newField.extractMode" style="width:100%" placeholder="选择模式">
+            <el-option label="单一单元格 SINGLE" value="SINGLE" />
+            <el-option label="向下列表 DOWN" value="DOWN" />
+            <el-option label="向右列表 RIGHT" value="RIGHT" />
+            <el-option label="区域块 BLOCK" value="BLOCK" />
+            <el-option label="直到空值 UNTIL_EMPTY" value="UNTIL_EMPTY" />
           </el-select>
         </el-form-item>
         <el-form-item label="数据类型" required>
-          <el-select v-model="newField.type" style="width: 100%" placeholder="请选择数据类型">
-            <el-option label="🔤 字符串 (STRING)" value="STRING" />
-            <el-option label="🔢 数字 (NUMBER)" value="NUMBER" />
-            <el-option label="📅 日期 (DATE)" value="DATE" />
-            <el-option label="✅ 布尔值 (BOOLEAN)" value="BOOLEAN" />
+          <el-select v-model="newField.type" style="width:100%" placeholder="选择类型">
+            <el-option label="字符串 STRING" value="STRING" />
+            <el-option label="数字 NUMBER" value="NUMBER" />
+            <el-option label="日期 DATE" value="DATE" />
+            <el-option label="布尔 BOOLEAN" value="BOOLEAN" />
           </el-select>
         </el-form-item>
-        <el-form-item label="是否必填">
+        <el-form-item label="必填">
           <el-switch v-model="newField.required" />
         </el-form-item>
 
-        <!-- 范围配置 -->
         <template v-if="['DOWN', 'RIGHT', 'BLOCK'].includes(newField.extractMode)">
-          <el-divider content-position="left">范围设置</el-divider>
+          <el-divider content-position="left">范围</el-divider>
           <el-form-item label="行数">
-            <el-input-number
-              v-model.number="newField.range!.rows"
-              :min="1"
-              style="width: 100%"
-              placeholder="提取的行数"
-            />
+            <el-input-number v-model.number="newField.range!.rows" :min="1" style="width:100%" />
           </el-form-item>
           <el-form-item label="列数" v-if="newField.extractMode === 'BLOCK'">
-            <el-input-number
-              v-model.number="newField.range!.cols"
-              :min="1"
-              style="width: 100%"
-              placeholder="提取的列数"
-            />
+            <el-input-number v-model.number="newField.range!.cols" :min="1" style="width:100%" />
           </el-form-item>
           <el-form-item label="跳过空行">
             <el-switch v-model="newField.range!.skipEmpty" />
           </el-form-item>
         </template>
       </el-form>
-
       <template #footer>
-        <div class="dialog-footer">
+        <div class="eced-dlg-foot">
           <el-button @click="showAddField = false">取消</el-button>
           <el-button type="primary" @click="confirmAddField">确定</el-button>
         </div>
       </template>
     </el-dialog>
 
-    <!-- JSON 预览对话框 -->
-    <el-dialog v-model="showJsonPreview" title="配置预览" width="640px">
-      <div class="json-container">
-        <pre class="json-preview">{{ jsonPreview }}</pre>
+    <el-dialog v-model="showJsonPreview" title="配置预览" width="620px" class="eced-dlg-json">
+      <div class="eced-json-box">
+        <pre class="eced-json-pre">{{ jsonPreview }}</pre>
       </div>
       <template #footer>
-        <div class="dialog-footer">
+        <div class="eced-dlg-foot">
           <el-button @click="showJsonPreview = false">关闭</el-button>
           <el-button type="primary" @click="handleDownloadFromPreview">下载 JSON</el-button>
         </div>
@@ -287,15 +290,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import {
-  UploadFilled,
   Document,
   Download,
   CopyDocument,
-  FolderChecked,
-  Refresh,
-  Setting,
   Plus,
-  Close,
 } from '@element-plus/icons-vue';
 import {
   ElMessage,
@@ -309,8 +307,6 @@ import {
   ElInputNumber,
   ElSwitch,
   ElDialog,
-  ElEmpty,
-  ElTag,
   ElDivider,
 } from 'element-plus';
 
@@ -323,7 +319,6 @@ import type {
 import { toExcelConfig, downloadJson, copyToClipboard } from '../utils/configGenerator';
 import { useUniver } from '../composables/useUniver';
 
-// Props & Emits
 const props = withDefaults(defineProps<ExcelConfigEditorProps>(), {
   showToolbar: true,
   templateName: '订单模板',
@@ -331,7 +326,6 @@ const props = withDefaults(defineProps<ExcelConfigEditorProps>(), {
 
 const emit = defineEmits<ExcelConfigEditorEmits>();
 
-// 状态
 const excelFile = ref<File | null>(null);
 const fields = ref<FieldConfig[]>([]);
 const showAddField = ref(false);
@@ -339,15 +333,12 @@ const showJsonPreview = ref(false);
 const jsonPreview = ref('');
 const localTemplateName = ref(props.templateName);
 
-// 选中的单元格
 const selectedRow = ref<number>(-1);
 const selectedCol = ref<number>(-1);
 const selectedCell = ref<string>('');
 
-// Univer hooks
 const { loadExcelFile, getExcelData, getHeaders } = useUniver();
 
-// 表格数据
 const tableData = computed(() => {
   const data = getExcelData();
   return data.slice(1);
@@ -357,14 +348,12 @@ const tableHeaders = computed(() => {
   return getHeaders();
 });
 
-// 最大列数（表头和数据的最大值）
 const maxColumns = computed(() => {
   const headerCount = tableHeaders.value.length;
   const maxDataCols = Math.max(...tableData.value.map(row => row?.length || 0), 0);
-  return Math.max(headerCount, maxDataCols, 10); // 至少 10 列
+  return Math.max(headerCount, maxDataCols, 10);
 });
 
-// 新字段表单
 const newField = ref<FieldConfig>({
   id: '',
   key: '',
@@ -372,20 +361,13 @@ const newField = ref<FieldConfig>({
   extractMode: 'SINGLE',
   type: 'STRING',
   required: false,
-  range: {
-    rows: 1,
-    cols: 1,
-    skipEmpty: false,
-  },
+  range: { rows: 1, cols: 1, skipEmpty: false },
 });
 
-// 处理文件上传
 const handleFileChange = async (file: any) => {
   const rawFile = file.raw as File;
   if (!rawFile) return;
-
   excelFile.value = rawFile;
-
   try {
     await loadExcelFile(rawFile);
     ElMessage.success(`已加载：${rawFile.name}`);
@@ -396,7 +378,6 @@ const handleFileChange = async (file: any) => {
   }
 };
 
-// 重新上传
 const resetFile = () => {
   excelFile.value = null;
   fields.value = [];
@@ -405,56 +386,35 @@ const resetFile = () => {
   selectedCell.value = '';
 };
 
-// 单元格点击
 const handleCellClick = (rowIndex: number, colIndex: number, cellValue: any) => {
   selectedRow.value = rowIndex;
   selectedCol.value = colIndex;
-
   const colLetter = String.fromCharCode(65 + colIndex);
-  const rowNum = rowIndex + 2; // +2: 表头占一行，行号从 1 开始
+  const rowNum = rowIndex + 2;
   selectedCell.value = `${colLetter}${rowNum}`;
-
   const header = tableHeaders.value[colIndex] || '';
-
   newField.value = {
     id: '',
     key: header || `field_${rowIndex}_${colIndex}`,
-    position: {
-      cellRef: `${colLetter}${rowNum}`,
-      headerName: header,
-    },
+    position: { cellRef: `${colLetter}${rowNum}`, headerName: header },
     extractMode: 'DOWN',
     type: typeof cellValue === 'number' ? 'NUMBER' : 'STRING',
     required: false,
-    range: {
-      rows: Math.max(1, tableData.value.length - rowIndex),
-      skipEmpty: true,
-    },
+    range: { rows: Math.max(1, tableData.value.length - rowIndex), skipEmpty: true },
   };
-
   showAddField.value = true;
 };
 
-// 重置表单
 const resetForm = () => {
   newField.value = {
-    id: '',
-    key: '',
-    position: {},
-    extractMode: 'SINGLE',
-    type: 'STRING',
-    required: false,
+    id: '', key: '', position: {},
+    extractMode: 'SINGLE', type: 'STRING', required: false,
     range: { rows: 1, cols: 1, skipEmpty: false },
   };
 };
 
-// 确认添加字段
 const confirmAddField = () => {
-  if (!newField.value.key) {
-    ElMessage.warning('请输入字段名');
-    return;
-  }
-
+  if (!newField.value.key) { ElMessage.warning('请输入字段名'); return; }
   const field: FieldConfig = {
     id: `field_${Date.now()}`,
     key: newField.value.key!,
@@ -463,30 +423,22 @@ const confirmAddField = () => {
     type: newField.value.type as any,
     required: newField.value.required || false,
     range: ['DOWN', 'RIGHT', 'BLOCK'].includes(newField.value.extractMode!)
-      ? newField.value.range
-      : undefined,
+      ? newField.value.range : undefined,
   };
-
   fields.value.push(field);
   showAddField.value = false;
   emitConfigChange();
   ElMessage.success('字段添加成功');
 };
 
-// 删除字段
 const deleteField = (id: string) => {
-  fields.value = fields.value.filter((f) => f.id !== id);
+  fields.value = fields.value.filter(f => f.id !== id);
   emitConfigChange();
   ElMessage.info('已删除');
 };
 
-// 发出配置变化事件
-const emitConfigChange = () => {
-  const config = toExcelConfig(fields.value, localTemplateName.value);
-  emit('change', config);
-};
+const emitConfigChange = () => emit('change', toExcelConfig(fields.value, localTemplateName.value));
 
-// 生成配置
 const handleGenerate = () => {
   const config = toExcelConfig(fields.value, localTemplateName.value);
   jsonPreview.value = JSON.stringify(config, null, 2);
@@ -494,539 +446,883 @@ const handleGenerate = () => {
   emit('generate', config, jsonPreview.value);
 };
 
-// 下载 JSON
 const handleDownload = () => {
-  const config = toExcelConfig(fields.value, localTemplateName.value);
-  downloadJson(config);
+  downloadJson(toExcelConfig(fields.value, localTemplateName.value));
   ElMessage.success('JSON 已下载');
 };
 
 const handleDownloadFromPreview = () => {
-  const config = toExcelConfig(fields.value, localTemplateName.value);
-  downloadJson(config);
+  downloadJson(toExcelConfig(fields.value, localTemplateName.value));
   showJsonPreview.value = false;
   ElMessage.success('JSON 已下载');
 };
 
-// 复制 JSON
 const handleCopy = async () => {
-  const config = toExcelConfig(fields.value, localTemplateName.value);
-  const json = JSON.stringify(config, null, 2);
-  const success = await copyToClipboard(json);
-  if (success) {
-    ElMessage.success('已复制到剪贴板');
-  }
+  const json = JSON.stringify(toExcelConfig(fields.value, localTemplateName.value), null, 2);
+  if (await copyToClipboard(json)) ElMessage.success('已复制到剪贴板');
 };
 
-// 暴露方法
 defineExpose({
   getFields: () => fields.value,
   getConfig: () => toExcelConfig(fields.value, localTemplateName.value),
 });
 </script>
 
-<style lang="css">
-/* ===== 整体布局 ===== */
-.excel-config-editor {
+<style scoped>
+/* ==========================================================
+   eced = Excel Config Editor — Studio Precision
+   Typography: DM Sans + JetBrains Mono
+   Palette:    Deep charcoal, warm paper, teal accent
+   ========================================================== */
+
+.eced {
+  --c-bg: #f4f4f2;
+  --c-surface: #ffffff;
+  --c-surface-dim: #fafaf9;
+  --c-border: #e6e4dd;
+  --c-border-strong: #c8c5bc;
+  --c-text: #1a1a18;
+  --c-text-soft: #6b6a66;
+  --c-text-faint: #9e9c97;
+  --c-teal: #0d9488;
+  --c-teal-bg: rgba(13, 148, 136, 0.08);
+  --c-teal-glow: rgba(13, 148, 136, 0.18);
+  --c-red: #e53e3e;
+
+  --ff-sans: 'DM Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --ff-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+
+  --r-sm: 5px;
+  --r-md: 8px;
+  --r-lg: 12px;
+
+  --s1: 0 1px 2px rgba(0,0,0,0.04);
+  --s2: 0 4px 12px rgba(0,0,0,0.05);
+  --s3: 0 8px 24px rgba(0,0,0,0.07);
+
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #f8f9fa;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--c-bg);
+  font-family: var(--ff-sans);
+  color: var(--c-text);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* ===== 顶部工具栏 ===== */
-.toolbar {
+/* ─── Toolbar ─── */
+
+.eced-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 56px;
-  padding: 0 20px;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  height: 48px;
+  padding: 0 14px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  flex-shrink: 0;
 }
 
-.toolbar-left,
-.toolbar-right {
+.eced-toolbar-left,
+.eced-toolbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
-.logo {
+.eced-brand {
   display: flex;
   align-items: center;
   gap: 8px;
+  color: var(--c-text);
 }
 
-.logo-icon {
-  font-size: 24px;
+.eced-brand-symbol {
+  color: var(--c-teal);
 }
 
-.logo-text {
-  font-size: 18px;
+.eced-brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.eced-brand-tag {
+  font-size: 9px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--c-text-faint);
+  background: var(--c-bg);
+  padding: 2px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
 }
 
-.toolbar-divider {
+.eced-brand-sep {
   width: 1px;
-  height: 24px;
-  background: #e0e0e0;
-  margin: 0 8px;
+  height: 18px;
+  background: var(--c-border);
 }
 
-.template-input {
-  width: 200px;
+.eced-tpl-input {
+  width: 160px;
 }
 
-/* ===== 状态栏 ===== */
-.status-bar {
+.eced-tpl-input :deep(.el-input__wrapper) {
+  background: var(--c-bg);
+  box-shadow: none;
+  border-radius: var(--r-sm);
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.eced-tpl-input :deep(.el-input__wrapper:hover) {
+  background: #eae9e6;
+}
+
+.eced-tpl-input :deep(.el-input__wrapper.is-focus) {
+  background: var(--c-surface);
+  box-shadow: 0 0 0 2px var(--c-teal-bg);
+}
+
+.eced-tpl-input :deep(.el-input__inner) {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--ff-sans);
+  color: var(--c-text);
+}
+
+.eced-btn {
+  font-family: var(--ff-sans) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  border-radius: var(--r-sm) !important;
+  transition: all 0.15s ease !important;
+  border: 1px solid var(--c-border-strong) !important;
+  background: var(--c-surface) !important;
+  color: var(--c-text) !important;
+  height: 32px !important;
+}
+
+.eced-btn:hover {
+  border-color: var(--c-teal) !important;
+  color: var(--c-teal) !important;
+  background: var(--c-teal-bg) !important;
+}
+
+.eced-btn--primary {
+  background: var(--c-teal) !important;
+  border-color: var(--c-teal) !important;
+  color: #fff !important;
+}
+
+.eced-btn--primary:hover {
+  background: #0f766e !important;
+  border-color: #0f766e !important;
+  color: #fff !important;
+}
+
+/* ─── Status ─── */
+
+.eced-status {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 32px;
-  padding: 0 16px;
-  background: #fff;
-  border-bottom: 1px solid #e8eaed;
-  font-size: 12px;
-  color: #5f6368;
+  height: 26px;
+  padding: 0 14px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  flex-shrink: 0;
 }
 
-.status-left,
-.status-right {
+.eced-status-left,
+.eced-status-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 6px;
 }
 
-.status-item {
+.eced-status-bullet {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--c-text-faint);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
+.eced-status-bullet.is-live {
+  background: var(--c-teal);
+  box-shadow: 0 0 5px var(--c-teal-glow);
+}
+
+.eced-status-text {
+  font-size: 11px;
+  color: var(--c-text-soft);
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-/* ===== 主内容区 ===== */
-.main-content {
+.eced-status-file {
+  font-weight: 500;
+  color: var(--c-text);
+}
+
+.eced-status-divider {
+  color: var(--c-text-faint);
+}
+
+.eced-status-count {
+  font-size: 11px;
+  color: var(--c-text-soft);
+}
+
+.eced-count-num {
+  font-weight: 600;
+  color: var(--c-teal);
+  margin-right: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Body ─── */
+
+.eced-body {
   display: flex;
   flex: 1;
   overflow: hidden;
 }
 
-/* ===== 表格区域 ===== */
-.sheet-area {
+/* ─── Sheet ─── */
+
+.eced-sheet {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: #f8f9fa;
+  display: flex;
+  flex-direction: column;
 }
 
-/* 上传遮罩 */
-.upload-overlay {
+/* ─── Upload ─── */
+
+.eced-upload {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.8);
-  backdrop-filter: blur(4px);
+  background:
+    radial-gradient(circle at 30% 40%, rgba(13,148,136,0.03) 0%, transparent 60%),
+    radial-gradient(circle at 70% 60%, rgba(13,148,136,0.02) 0%, transparent 50%),
+    var(--c-bg);
 }
 
-.upload-card {
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-  padding: 8px;
+.eced-upload-inner {
+  width: 380px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
 }
 
-.upload-content {
-  padding: 60px 80px;
+.eced-upload-inner :deep(.el-upload),
+.eced-upload-inner :deep(.el-upload-dragger) {
+  width: 100%;
+}
+
+.eced-upload-inner :deep(.el-upload-dragger) {
+  padding: 52px 28px;
+  border: 2px dashed var(--c-border-strong);
+  border-radius: var(--r-lg);
+  background: var(--c-surface);
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.25s;
+}
+
+.eced-upload-inner :deep(.el-upload-dragger:hover),
+.eced-upload-inner :deep(.el-upload-dragger.is-dragover) {
+  border-color: var(--c-teal);
+  background: var(--c-teal-bg);
+  box-shadow: 0 0 0 4px var(--c-teal-bg);
+}
+
+.eced-upload-drop {
   text-align: center;
 }
 
-.upload-icon {
-  font-size: 64px;
-  color: #4285f4;
-  margin-bottom: 16px;
+.eced-upload-glyph {
+  color: var(--c-text-faint);
+  margin-bottom: 18px;
+  transition: color 0.25s;
 }
 
-.upload-title {
-  font-size: 18px;
-  font-weight: 500;
-  color: #1a1a1a;
-  margin-bottom: 8px;
+.eced-upload:hover .eced-upload-glyph,
+.eced-upload-inner :deep(.el-upload-dragger:hover) .eced-upload-glyph {
+  color: var(--c-teal);
 }
 
-.upload-subtitle {
-  font-size: 14px;
-  color: #5f6368;
-  margin-bottom: 16px;
+.eced-upload-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--c-text);
+  margin-bottom: 6px;
 }
 
-.upload-hint {
-  font-size: 12px;
-  color: #9aa0a6;
+.eced-upload-hint {
+  font-size: 13px;
+  color: var(--c-text-soft);
+  margin-bottom: 14px;
 }
 
-.upload-actions {
-  position: absolute;
-  bottom: 16px;
-  right: 16px;
+.eced-upload-types {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--c-text-faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--c-bg);
+  padding: 3px 10px;
+  border-radius: 4px;
 }
 
-/* 电子表格容器 */
-.spreadsheet {
+/* ─── Grid ─── */
+
+.eced-grid {
   display: flex;
   flex-direction: column;
   height: 100%;
 }
 
-/* 公式栏 */
-.formula-bar {
+/* fx bar */
+
+.eced-fx {
   display: flex;
   align-items: center;
-  height: 36px;
-  padding: 0 12px;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
-  gap: 8px;
+  height: 30px;
+  padding: 0 10px;
+  background: var(--c-surface);
+  border-bottom: 1px solid var(--c-border);
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.formula-label {
-  width: 24px;
-  height: 24px;
+.eced-fx-label {
+  width: 22px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f1f3f4;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #5f6368;
+  background: var(--c-bg);
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--c-text-faint);
   font-style: italic;
+  font-family: var(--ff-mono);
 }
 
-.formula-input {
+.eced-fx-value {
   flex: 1;
-  height: 24px;
-  padding: 0 8px;
-  background: #f1f3f4;
-  border-radius: 4px;
-  font-size: 13px;
-  color: #1a1a1a;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-family: var(--ff-mono);
+  color: var(--c-text);
   display: flex;
   align-items: center;
+  font-weight: 500;
 }
 
-/* 表格包装器 */
-.table-wrapper {
+.eced-fx-value.is-idle {
+  color: var(--c-text-faint);
+  font-style: italic;
+  font-family: var(--ff-sans);
+  font-weight: 400;
+  font-size: 11px;
+}
+
+/* table wrapper */
+
+.eced-table-wrap {
   flex: 1;
   overflow: auto;
-  background: #fff;
+  background: var(--c-surface);
 }
 
-/* 电子表格 */
-.spreadsheet-table {
+.eced-table-wrap::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.eced-table-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.eced-table-wrap::-webkit-scrollbar-thumb {
+  background: #d4d2cb;
+  border-radius: 4px;
+}
+
+.eced-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: #b8b5ac;
+}
+
+/* table */
+
+.eced-table {
   border-collapse: collapse;
   min-width: 100%;
+  table-layout: fixed;
 }
 
-/* 角落单元格 */
-.corner-cell {
-  width: 50px;
-  height: 28px;
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
+.eced-table td,
+.eced-table th {
+  border: 1px solid var(--c-border);
+}
+
+/* ─── th ─── */
+
+.eced-th--corner {
+  width: 44px;
+  height: 26px;
+  background: var(--c-bg);
   position: sticky;
   left: 0;
   top: 0;
-  z-index: 100;
+  z-index: 110;
 }
 
-/* 列表头 */
-.col-header {
-  min-width: 100px;
-  height: 42px;
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
+.eced-th--col {
+  min-width: 88px;
+  height: 40px;
+  background: var(--c-bg);
   padding: 0;
   text-align: left;
   position: sticky;
   top: 0;
   z-index: 50;
-  display: table-cell;
+  cursor: default;
+  transition: background 0.15s;
 }
 
-.col-header.empty {
-  background: #f8f9fa;
+.eced-th--col.is-lit {
+  background: #e1f0ee;
 }
 
-.col-header.selected {
-  background: #e3f2fd;
+.eced-th--ghost {
+  opacity: 0.4;
 }
 
-.col-letter {
+.eced-col-char {
   display: block;
+  padding: 2px 7px 0;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--c-text-faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.eced-col-label {
+  display: block;
+  padding: 0 7px 2px;
   font-size: 11px;
-  color: #5f6368;
-  font-weight: 500;
-  padding: 4px 8px 0;
-}
-
-.col-content {
-  display: block;
-  font-size: 12px;
-  color: #1a1a1a;
-  font-weight: 500;
-  padding: 0 8px;
+  font-weight: 600;
+  color: var(--c-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* 行头 */
-.row-header {
-  width: 50px;
-  height: 32px;
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
+/* ─── td ─── */
+
+.eced-td--row {
+  width: 44px;
+  height: 28px;
+  background: var(--c-bg);
   text-align: center;
-  font-size: 12px;
-  color: #5f6368;
+  font-size: 10px;
   font-weight: 500;
+  color: var(--c-text-faint);
   position: sticky;
   left: 0;
   z-index: 40;
+  transition: all 0.12s;
 }
 
-.row-header.selected {
-  background: #e3f2fd;
-  color: #1967d2;
+.eced-td--row.is-lit {
+  color: var(--c-teal);
+  font-weight: 600;
+  background: #e1f0ee;
 }
 
-/* 单元格 */
-.cell {
-  min-width: 100px;
-  height: 32px;
-  border: 1px solid #e0e0e0;
-  padding: 0 8px;
-  font-size: 13px;
-  color: #1a1a1a;
+.eced-td--cell {
+  min-width: 88px;
+  height: 28px;
+  padding: 0 7px;
+  font-size: 12px;
+  font-family: var(--ff-sans);
+  color: var(--c-text);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.1s, border-color 0.1s;
 }
 
-.cell:hover {
-  border-color: #1967d2;
-  background: rgba(25, 103, 210, 0.04);
+.eced-td--cell:hover {
+  background: var(--c-teal-bg);
 }
 
-.cell.selected {
-  border: 2px solid #1967d2;
-  background: rgba(25, 103, 210, 0.08);
+.eced-td--cell.is-hit {
+  border: 2px solid var(--c-teal);
+  background: var(--c-teal-bg);
   position: relative;
   z-index: 10;
 }
 
-.cell.header-row {
-  font-weight: 500;
-  background: rgba(0,0,0,0.02);
+.eced-td--cell.is-head {
+  font-weight: 600;
+  background: var(--c-surface-dim);
 }
 
-.cell.empty {
-  color: #9aa0a6;
-  background: #fafbfc;
+.eced-td--cell.is-void {
+  color: var(--c-text-faint);
+  background: #fcfcfb;
 }
 
-.cell.empty:hover {
-  background: rgba(25, 103, 210, 0.08);
+.eced-td--void {
+  color: transparent !important;
 }
 
-.cell-content {
+.eced-cell-val {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.selected-row {
-  background: rgba(25, 103, 210, 0.02);
+.is-row-lit {
+  background: var(--c-teal-bg);
 }
 
-/* ===== 配置面板 ===== */
-.config-panel {
-  width: 360px;
-  background: #fff;
-  border-left: 1px solid #e0e0e0;
+/* grid footer */
+
+.eced-grid-foot {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+}
+
+.eced-reload {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--ff-sans);
+  color: var(--c-text-soft);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.eced-reload:hover {
+  color: var(--c-teal);
+  border-color: var(--c-teal);
+  background: var(--c-teal-bg);
+}
+
+/* ─── Panel ─── */
+
+.eced-panel {
+  width: 320px;
+  background: var(--c-surface);
+  border-left: 1px solid var(--c-border);
   display: flex;
   flex-direction: column;
-  box-shadow: -2px 0 8px rgba(0,0,0,0.04);
+  flex-shrink: 0;
 }
 
-.config-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px;
-  border-bottom: 1px solid #e8eaed;
-  background: #fafbfc;
-}
-
-.header-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1a1a1a;
-}
-
-.config-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px;
-  background: #f8f9fa;
-}
-
-.config-item {
-  margin-bottom: 8px;
-}
-
-.config-item-main {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  overflow: hidden;
-  transition: all 0.2s;
-}
-
-.config-item-main:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  border-color: #1967d2;
-}
-
-.config-item-header {
+.eced-panel-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 14px;
-  background: linear-gradient(to bottom, #fafbfc, #fff);
-  border-bottom: 1px solid #f1f3f4;
+  border-bottom: 1px solid var(--c-border);
 }
 
-.field-info {
+.eced-panel-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.field-index {
-  width: 20px;
-  height: 20px;
+.eced-panel-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--c-bg);
+}
+
+.eced-panel-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.eced-panel-list::-webkit-scrollbar-thumb {
+  background: #d4d2cb;
+  border-radius: 2px;
+}
+
+/* empty */
+
+.eced-panel-none {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #e8f0fe;
-  color: #1967d2;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 50%;
+  padding: 44px 16px;
+  text-align: center;
 }
 
-.field-key {
-  font-weight: 500;
-  color: #1a1a1a;
-  font-size: 14px;
+.eced-none-icon {
+  color: var(--c-text-faint);
+  margin-bottom: 14px;
+  opacity: 0.4;
 }
 
-.field-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.eced-none-text {
+  font-size: 12px;
+  color: var(--c-text-faint);
+  line-height: 1.6;
 }
 
-.config-item-details {
-  padding: 10px 14px;
+/* cards */
+
+.eced-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-left: 3px solid var(--c-border);
+  border-radius: 0 var(--r-md) var(--r-md) 0;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  margin-bottom: 7px;
 }
 
-.detail-row {
+.eced-card:hover {
+  border-color: var(--c-border-strong);
+  border-left-color: var(--c-teal);
+  box-shadow: var(--s1);
+}
+
+.eced-card-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 6px 0;
-  font-size: 12px;
+  padding: 9px 10px 9px 12px;
+  border-bottom: 1px solid var(--c-border);
 }
 
-.detail-label {
-  color: #5f6368;
-}
-
-.detail-value {
-  color: #1a1a1a;
+.eced-card-meta {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  min-width: 0;
 }
 
-.detail-value .hint {
-  color: #1967d2;
-  font-size: 11px;
-  background: rgba(25, 103, 210, 0.1);
+.eced-card-num {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-teal-bg);
+  color: var(--c-teal);
+  font-size: 9px;
+  font-weight: 700;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.eced-card-key {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eced-card-ops {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.eced-card-mode {
+  font-family: var(--ff-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: var(--c-bg);
+  color: var(--c-text-soft);
   padding: 2px 6px;
   border-radius: 3px;
 }
 
-/* ===== 对话框 ===== */
-.dialog-footer {
+.eced-card-del {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--c-text-faint);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.eced-card-del:hover {
+  color: var(--c-red);
+  background: rgba(229, 62, 62, 0.08);
+}
+
+.eced-card-body {
+  padding: 7px 12px;
+}
+
+.eced-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 11px;
+}
+
+.eced-card-lbl {
+  color: var(--c-text-faint);
+}
+
+.eced-card-val {
+  color: var(--c-text-soft);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.eced-card-val--mono {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+}
+
+.eced-card-skip {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--c-teal);
+  background: var(--c-teal-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ─── Dialogs ─── */
+
+.eced-dlg :deep(.el-dialog__header) {
+  padding: 14px 18px 0;
+  margin: 0;
+}
+
+.eced-dlg :deep(.el-dialog__title) {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--ff-sans);
+}
+
+.eced-dlg :deep(.el-dialog__body) {
+  padding: 14px 18px;
+}
+
+.eced-dlg :deep(.el-dialog__footer) {
+  padding: 0 18px 14px;
+}
+
+.eced-dlg :deep(.el-form-item__label) {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text-soft);
+}
+
+.eced-dlg :deep(.el-input__wrapper) {
+  border-radius: var(--r-sm);
+}
+
+.eced-dlg :deep(.el-divider__text) {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--c-text-faint);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.eced-dlg-foot {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.json-container {
-  background: #1a1a1a;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.json-preview {
-  background: #0d1117;
-  color: #e6edf3;
-  padding: 20px;
-  margin: 0;
-  max-height: 400px;
-  overflow-y: auto;
-  font-family: 'SF Mono', Monaco, Consolas, monospace;
+.eced-dlg-foot :deep(.el-button) {
+  font-family: var(--ff-sans);
   font-size: 12px;
-  line-height: 1.6;
+  font-weight: 500;
+  border-radius: var(--r-sm);
 }
 
-/* ===== 滚动条 ===== */
-.table-wrapper::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+/* json dialog */
+
+.eced-dlg-json :deep(.el-dialog__header) {
+  padding: 14px 18px 0;
+  margin: 0;
 }
 
-.table-wrapper::-webkit-scrollbar-track {
-  background: #f1f1f1;
+.eced-dlg-json :deep(.el-dialog__title) {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--ff-sans);
 }
 
-.table-wrapper::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 5px;
+.eced-dlg-json :deep(.el-dialog__body) {
+  padding: 10px 18px;
 }
 
-.table-wrapper::-webkit-scrollbar-thumb:hover {
-  background: #a1a1a1;
+.eced-dlg-json :deep(.el-dialog__footer) {
+  padding: 0 18px 14px;
 }
 
-.config-list::-webkit-scrollbar {
-  width: 6px;
+.eced-json-box {
+  background: #12131a;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  border: 1px solid #1e2030;
 }
 
-.config-list::-webkit-scrollbar-thumb {
-  background: #dadce0;
-  border-radius: 3px;
+.eced-json-pre {
+  margin: 0;
+  padding: 14px 18px;
+  max-height: 360px;
+  overflow-y: auto;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  line-height: 1.8;
+  color: #e2e4ec;
+  letter-spacing: 0.01em;
+  tab-size: 2;
+}
+
+.eced-json-pre::-webkit-scrollbar {
+  width: 4px;
+}
+
+.eced-json-pre::-webkit-scrollbar-thumb {
+  background: #2a2d42;
+  border-radius: 2px;
 }
 </style>
